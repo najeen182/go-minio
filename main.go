@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"time"
 
 	"github.com/minio/minio-go/v7"
 	"github.com/minio/minio-go/v7/pkg/credentials"
@@ -54,8 +55,10 @@ func staticFileHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Get the object from MinIO
-	object, err := minioClient.GetObject(context.Background(), bucketName, objectName, minio.GetObjectOptions{})
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second) // 10-second timeout
+	defer cancel()
+
+	object, err := minioClient.GetObject(ctx, bucketName, objectName, minio.GetObjectOptions{})
 	if err != nil {
 		log.Printf("Failed to get object %s: %v", objectName, err)
 		http.Error(w, "Not Found", http.StatusNotFound)
@@ -86,9 +89,14 @@ func main() {
 	if port == "" {
 		port = "8080" // Default port
 	}
-
-	log.Printf("Starting server on :%s", port)
-	if err := http.ListenAndServe(fmt.Sprintf(":%s", port), nil); err != nil {
-		log.Fatalf("Server failed: %v", err)
+	server := &http.Server{
+		Addr:         fmt.Sprintf(":%s", port),
+		Handler:      http.DefaultServeMux,
+		ReadTimeout:  15 * time.Second, // Limit reading request headers
+		WriteTimeout: 15 * time.Second, // Limit response write time
+		IdleTimeout:  60 * time.Second, // Limit idle keep-alive connections
 	}
+	log.Printf("Starting server on :%s", port)
+	log.Fatal(server.ListenAndServe())
+
 }
