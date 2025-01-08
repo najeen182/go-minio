@@ -89,7 +89,8 @@ func staticFileHandler(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", stat.ContentType)
 	w.Header().Set("X-Powered-By", "S3-WEB")
-
+	w.Header().Set("Access-Control-Allow-Origin", r.Header.Get("Origin"))
+	w.Header().Set("Access-Control-Allow-Methods", "GET")
 	// Serve the content
 	http.ServeContent(w, r, objectName, stat.LastModified, object)
 
