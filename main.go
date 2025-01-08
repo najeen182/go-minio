@@ -88,6 +88,7 @@ func staticFileHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Cache-Control", "public, max-age=31536000") // Cache for 1 year
 
 	w.Header().Set("Content-Type", stat.ContentType)
+	w.Header().Set("X-Powered-By", "S3-WEB")
 
 	// Serve the content
 	http.ServeContent(w, r, objectName, stat.LastModified, object)
