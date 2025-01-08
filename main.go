@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"sync"
 	"time"
 
 	"github.com/minio/minio-go/v7"
@@ -15,6 +16,19 @@ import (
 var (
 	minioClient *minio.Client
 	bucketName  string
+)
+
+// CacheItem represents a cached file
+type CacheItem struct {
+	Content      []byte
+	ContentType  string
+	LastModified time.Time
+	ExpiresAt    time.Time
+}
+
+var (
+	cache    sync.Map          // In-memory cache
+	cacheTTL = 5 * time.Minute // Cache expiration time
 )
 
 func init() {
@@ -55,10 +69,7 @@ func staticFileHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second) // 10-second timeout
-	defer cancel()
-
-	object, err := minioClient.GetObject(ctx, bucketName, objectName, minio.GetObjectOptions{})
+	object, err := minioClient.GetObject(context.Background(), bucketName, objectName, minio.GetObjectOptions{})
 	if err != nil {
 		log.Printf("Failed to get object %s: %v", objectName, err)
 		http.Error(w, "Not Found", http.StatusNotFound)
@@ -66,20 +77,21 @@ func staticFileHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	defer object.Close()
 
-	// Set caching headers
-	w.Header().Set("Cache-Control", "public, max-age=31536000") // Cache for 1 year
-
-	// Detect content type if possible
+	// Fetch metadata and content
 	stat, err := object.Stat()
 	if err != nil {
 		log.Printf("Failed to stat object %s: %v", objectName, err)
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 		return
 	}
+	// Set caching headers
+	w.Header().Set("Cache-Control", "public, max-age=31536000") // Cache for 1 year
+
 	w.Header().Set("Content-Type", stat.ContentType)
 
 	// Serve the content
 	http.ServeContent(w, r, objectName, stat.LastModified, object)
+
 }
 
 func main() {
