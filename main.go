@@ -63,6 +63,7 @@ func init() {
 }
 
 func staticFileHandler(w http.ResponseWriter, r *http.Request) {
+	log.Println(r.Header)
 	objectName := r.URL.Path[1:] // Remove leading slash
 	if objectName == "" {
 		http.Error(w, "Bad Request: Object name is required", http.StatusBadRequest)
