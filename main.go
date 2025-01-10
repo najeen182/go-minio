@@ -86,14 +86,16 @@ func staticFileHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	// Set caching headers
 	w.Header().Set("Cache-Control", "public, max-age=31536000") // Cache for 1 year
-
 	w.Header().Set("Content-Type", stat.ContentType)
 	w.Header().Set("X-Powered-By", "S3-WEB")
-	w.Header().Set("Access-Control-Allow-Origin", r.Header.Get("Origin"))
 	w.Header().Set("Access-Control-Allow-Methods", "GET")
+	if r.Header.Get("X-Forwarded-Host") != "" {
+		w.Header().Set("Access-Control-Allow-Origin", r.Header.Get("X-Forwarded-Host"))
+	} else {
+		w.Header().Set("Access-Control-Allow-Origin", r.Header.Get("Origin"))
+	}
 	// Serve the content
 	http.ServeContent(w, r, objectName, stat.LastModified, object)
-
 }
 
 func main() {
